@@ -59,16 +59,16 @@ def annotate(image, final_predictions):
         height = y_max - y_min
         rect = patches.Rectangle(
             (x_min, y_min), width, height, 
-            linewidth=2, 
-            edgecolor="green", 
+            linewidth=5, 
+            edgecolor="red", 
             facecolor='none'
         )
         ax.add_patch(rect)
         ax.text(
             x_min, y_min - 5, 
             label, 
-            color="green", 
-            fontsize=12, 
+            color="black", 
+            fontsize=15, 
             bbox={'facecolor': 'white', 'alpha': 0.7, 'pad': 2}
         )
     ax.set_xticks([])
