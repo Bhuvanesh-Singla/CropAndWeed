@@ -5,6 +5,7 @@ import torch
 from torchvision import transforms
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import argparse
 
 def batcher(bbox_predictions, vit_ids, image):
     transform = transforms.Compose([
@@ -103,17 +104,29 @@ def crop_and_weed_pipeline(plant_detector, weed_classifier, image_path):
 
 
 if __name__ == "__main__":
-    # Paths to the model files
-    plant_detector_config_path = "nanodet_files/ViTnanodet/config/nanodet-plus-m_416-yolo-cpu.yml"
-    plant_detector_model_path = "nanodet_files/ViTnanodet/saved_models/nanodet_model_best.pth"
-    weed_classifier_model_path = "VIT_files/model_weights/vit_tiny.pth"
+    # # Paths to the model files
+    # plant_detector_config_path = "nanodet_files/ViTnanodet/config/nanodet-plus-m_416-yolo-cpu.yml"
+    # plant_detector_model_path = "nanodet_files/ViTnanodet/saved_models/nanodet_model_best.pth"
+    # weed_classifier_model_path = "VIT_files/model_weights/vit_tiny.pth"
+    # # Path to the image
+    # image_path = "images/agri_0_1083.jpeg"
+    #
+    # Argument parser for command line arguments
+    parser = argparse.ArgumentParser(description="Crop and Weed Detection Pipeline")
+    parser.add_argument("--plant_detector_config", type=str, required=True, help="Path to the plant detector config file")
+    parser.add_argument("--plant_detector_model", type=str, required=True, help="Path to the plant detector model file")
+    parser.add_argument("--weed_classifier_model", type=str, required=True, help="Path to the weed classifier model file")
+    parser.add_argument("--image_path", type=str, required=True, help="Path to the input image")
+    args = parser.parse_args()    
+    plant_detector_config_path = args.plant_detector_config
+    plant_detector_model_path = args.plant_detector_model
+    weed_classifier_model_path = args.weed_classifier_model
+    image_path = args.image_path
 
     # Initialize the detectors
     plant_detector = PlantDetector(plant_detector_config_path, plant_detector_model_path)
     weed_classifier = WeedDetector(weed_classifier_model_path)
 
-    # Path to the image
-    image_path = "images/agri_0_1083.jpeg"
 
     # Run the pipeline
     crop_and_weed_pipeline(plant_detector, weed_classifier, image_path)
