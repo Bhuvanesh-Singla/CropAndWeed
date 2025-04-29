@@ -1,6 +1,10 @@
 # CropAndWeed
 IT357 CV Project
 To use the pipeline, clone the git repo to your local system.
+Download the dataset from the following link
+```bash
+https://www.kaggle.com/datasets/bhuvaneshsingla16/cleaned-cv-dataset/
+```
 Navigate to the folder containing the cloned repo.
 Navigate to `Final Flow` folder containing all code
 Install the requirements using 
