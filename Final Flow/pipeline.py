@@ -44,6 +44,17 @@ def annotate(image, final_predictions):
     for idx, prediction in final_predictions.items():
         label, bbox = prediction.values()
         x_min, y_min, x_max, y_max = bbox
+        
+        # Convert to numeric values if they're lists
+        if isinstance(x_min, list):
+            x_min = x_min[0]
+        if isinstance(y_min, list):
+            y_min = y_min[0]
+        if isinstance(x_max, list):
+            x_max = x_max[0]
+        if isinstance(y_max, list):
+            y_max = y_max[0]
+            
         width = x_max - x_min
         height = y_max - y_min
         rect = patches.Rectangle(
@@ -83,30 +94,34 @@ def crop_and_weed_pipeline(plant_detector, weed_classifier, image_path):
     meta, results = plant_detector.inference(image_path)
     image = meta["raw_img"][0].copy()
     
-    for idx, (class_id, detection) in enumerate(results.items()):
-        bbox_predictions[idx] = [class_id, detection]
+    idx_counter = 0
+    for class_id, detections_list in results.items():
+        for detection in detections_list:
+            bbox_predictions[idx_counter] = [class_id, detection]
+            idx_counter += 1
 
     for idx, result in bbox_predictions.items():
         class_id, detection = result
-        if class_id == 0:
-            final_predictions[idx] = {"label": "CROP",
-                                      "bbox" : detection[:4],
-                                     }
-        else:
-            if len(detection) == 5 and detection[4] >= 0.35:
+        if len(detection) == 5 and detection[4] >= 0.35:
+            if class_id == 0:
+                final_predictions[idx] = {"label": "CROP",
+                                          "bbox" : detection[:4],
+                                         }
+            else:
                 final_predictions[idx] = {"label": "WEED",
                                           "bbox" : detection[:4]
                                          }
                 vit_ids.append(idx)
     
-    batch = batcher(bbox_predictions, vit_ids, image)
-    if batch:
+    batch = batcher(bbox_predictions, vit_ids, image.copy())
+    if batch is not None:
         predictions = weed_classifier.predict(batch)
         for idx, prediction in zip(vit_ids, predictions):
             final_predictions[idx]["label"] += f"_{prediction}"
-    
-    annotated_img = annotate(image, final_predictions)
-    plt.imsave("annotated_image.jpg", annotated_img)
+    print("\n\n\n\ndone\n\n\n")
+    annotated_img = annotate(image.copy(), final_predictions)
+    plt.imsave("/kaggle/working/annotated_image.jpg", annotated_img)
+    print("saved to /kaggle/working/annotated_image.jpg")
     plt.figure(figsize=(12, 12))
     plt.imshow(annotated_img)
     plt.axis('off')
