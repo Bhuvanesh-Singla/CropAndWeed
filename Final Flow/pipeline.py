@@ -1,3 +1,13 @@
+import sys
+import os
+
+# Add ViTnanodet to sys.path so 'nanodet' submodule is importable
+sys.path.append(os.path.join(os.path.dirname(__file__), 'nanodet_files', 'ViTnanodet'))
+
+# Add VIT_files to sys.path so model.py is importable within vit_inference.py
+sys.path.append(os.path.join(os.path.dirname(__file__), 'VIT_files'))
+
+
 from VIT_files.vit_inference import WeedDetector
 from nanodet_files.ViTnanodet.nanodet_inference import PlantDetector
 import numpy as np
