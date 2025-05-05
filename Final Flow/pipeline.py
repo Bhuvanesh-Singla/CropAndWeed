@@ -16,6 +16,29 @@ from torchvision import transforms
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import argparse
+import time
+
+mappings = {
+    'CROP': 0,
+    'GRASSES': 1,
+    'AMARANTH': 2,
+    'GOOSEFOOT': 3,
+    'KNOTWEED': 4,
+    'CORN SPURRY': 5,
+    'CHICKWEED': 6,
+    'SOLANALES': 7,
+    'POTATO WEED': 8,
+    'CHAMOMILE': 9,
+    'THISTLE': 10,
+    'MERCURIES': 11,
+    'GERANIUM': 12,
+    'CRUCIFER': 13,
+    'POPPY': 14,
+    'PLANTAGO': 15,
+    'LABIATE': 16
+}
+
+
 
 def batcher(bbox_predictions, vit_ids, image):
     transform = transforms.Compose([
@@ -85,40 +108,68 @@ def annotate(image, final_predictions):
     
     return annotated_image
 
-def crop_and_weed_pipeline(plant_detector, weed_classifier, image_path):
-    bbox_predictions = {}
-    vit_ids = []
-    final_predictions = {}
-
-    
+def crop_and_weed_pipeline(plant_detector,
+                             weed_classifier,
+                             image_path,
+                             return_preds: bool = False):
+    """
+    Runs the crop-vs-weed detector and, for weeds, a 16-way species classifier.
+    If return_preds=True, returns a list of (bbox, species_id) tuples and skips plotting.
+    Otherwise, behaves exactly as before (annotates and shows/saves the image).
+    """
+    start = time.time()
+    # Step 1: run detector
     meta, results = plant_detector.inference(image_path)
     image = meta["raw_img"][0].copy()
-    
+
+    # Gather raw detections
+    bbox_predictions = {}
     idx_counter = 0
-    for class_id, detections_list in results.items():
-        for detection in detections_list:
-            bbox_predictions[idx_counter] = [class_id, detection]
+    for class_id, det_list in results.items():
+        for det in det_list:
+            bbox_predictions[idx_counter] = [class_id, det]
             idx_counter += 1
 
-    for idx, result in bbox_predictions.items():
-        class_id, detection = result
-        if len(detection) == 5 and detection[4] >= 0.35:
-            if class_id == 0:
+    # Step 2: filter by confidence & class
+    vit_ids = []
+    final_predictions = {}
+    for idx, (cls, det) in bbox_predictions.items():
+        if len(det) == 5 and det[4] >= 0.35:
+            x1, y1, x2, y2, _ = det
+            if cls == 0:
+                # CROP
                 final_predictions[idx] = {"label": "CROP",
-                                          "bbox" : detection[:4],
-                                         }
+                                          "bbox": [int(x1), int(y1), int(x2), int(y2)]}
             else:
+                # WEED
                 final_predictions[idx] = {"label": "WEED",
-                                          "bbox" : detection[:4]
-                                         }
+                                          "bbox": [int(x1), int(y1), int(x2), int(y2)]}
                 vit_ids.append(idx)
-    
+
+    # Step 3: classify weed patches
     batch = batcher(bbox_predictions, vit_ids, image.copy())
     if batch is not None:
-        predictions = weed_classifier.predict(batch)
-        for idx, prediction in zip(vit_ids, predictions):
-            final_predictions[idx]["label"] += f"_{prediction}"
+        species_preds = weed_classifier.predict(batch)
+        for idx, sp in zip(vit_ids, species_preds):
+            final_predictions[idx]["label"] += f"_{sp}"
+
+    # Step 4: if only returning preds, skip annotation
+    preds = []
+    for info in final_predictions.values():
+        lbl = info["label"]
+        bbox = info["bbox"]
+        if lbl.startswith("WEED_"):
+            species_id = int(mappings[lbl.split("_")[1]])
+            preds.append((bbox, species_id))
+    if return_preds:
+        return preds
+
+    end = time.time()
+    # --- existing annotation & display logic ---
+    elapsed_time = end - start
+    
     print("\n\n\n\ndone\n\n\n")
+    print(f"Elapsed time: {elapsed_time:.2f} seconds")
     annotated_img = annotate(image.copy(), final_predictions)
     plt.imsave("/kaggle/working/annotated_image.jpg", annotated_img)
     print("saved to /kaggle/working/annotated_image.jpg")
@@ -155,4 +206,3 @@ if __name__ == "__main__":
 
     # Run the pipeline
     crop_and_weed_pipeline(plant_detector, weed_classifier, image_path)
-    # Example usage
